@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSV Data Analysis with Sorting and Filtering</title>
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.1/papaparse.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-6">
+
+    <h1 class="text-3xl font-bold text-gray-800 mb-6">CSV Data Analysis with Sorting and Filtering</h1>
+
+    <button id="open-file" class="bg-blue-500 text-white px-4 py-2 rounded-lg shadow-md hover:bg-blue-600 transition-all">
+        Open CSV File
+    </button>
+
+    <div class="mt-6">
+        <!-- Sorting Controls -->
+        <label class="block mb-2">Sort By:</label>
+        <select id="sort-column" class="border p-2 rounded">
+            <!-- Options will be populated dynamically -->
+        </select>
+
+        <select id="sort-order" class="border p-2 rounded ml-2">
+            <option value="asc">Ascending</option>
+            <option value="desc">Descending</option>
+        </select>
+
+        <button id="sort-btn" class="bg-green-500 text-white px-4 py-2 rounded-lg ml-2">
+            Sort
+        </button>
+
+        <!-- Filter Controls -->
+        <div class="mt-4">
+            <label class="block mb-2">Filter By:</label>
+            <select id="filter-column" class="border p-2 rounded">
+                <!-- Options will be populated dynamically -->
+            </select>
+
+            <select id="filter-condition" class="border p-2 rounded ml-2">
+                <option value="greater">Greater Than</option>
+                <option value="less">Less Than</option>
+                <option value="equal">Equal To</option>
+            </select>
+
+            <input type="number" id="filter-value" class="border p-2 rounded ml-2" placeholder="Value" />
+
+            <button id="filter-btn" class="bg-yellow-500 text-white px-4 py-2 rounded-lg ml-2">
+                Filter
+            </button>
+        </div>
+    </div>
+
+    <div id="data-container" class="mt-8"></div>
+
+    <script>
+        let originalData = [];  // To store the original data for sorting and filtering
+
+        document.getElementById('open-file').addEventListener('click', async () => {
+            try {
+                // Request file from the user
+                const [fileHandle] = await window.showOpenFilePicker({
+                    types: [
+                        {
+                            description: 'CSV Files',
+                            accept: { 'text/csv': ['.csv'] },
+                        },
+                    ],
+                });
+
+                // Get a file object
+                const file = await fileHandle.getFile();
+                const text = await file.text();
+
+                // Parse the CSV file using PapaParse
+                Papa.parse(text, {
+                    header: true,
+                    complete: function(results) {
+                        originalData = results.data;  // Save the original data
+                        populateColumns(originalData);  // Populate column dropdowns
+                        renderTable(originalData, file.name);
+                    }
+                });
+            } catch (err) {
+                console.error(err);
+            }
+        });
+
+        // Populate the sorting and filtering dropdowns with column names
+        function populateColumns(data) {
+            const columnNames = Object.keys(data[0]);
+
+            const sortSelect = document.getElementById('sort-column');
+            const filterSelect = document.getElementById('filter-column');
+
+            // Clear previous options
+            sortSelect.innerHTML = '';
+            filterSelect.innerHTML = '';
+
+            columnNames.forEach(column => {
+                const option = new Option(column, column);
+                sortSelect.appendChild(option.cloneNode(true));  // Add to sort dropdown
+                filterSelect.appendChild(option);  // Add to filter dropdown
+            });
+        }
+
+        // Render the table based on the data
+        function renderTable(data, fileName) {
+            const tableContainer = document.getElementById('data-container');
+            tableContainer.innerHTML = '';  // Clear existing tables
+
+            const table = document.createElement('table');
+            table.classList.add('min-w-full', 'bg-white', 'shadow-md', 'rounded-lg', 'overflow-hidden');
+
+            const thead = document.createElement('thead');
+            thead.classList.add('bg-gray-200', 'text-left');
+            const headerRow = document.createElement('tr');
+
+            // Assuming data is not empty, use the keys from the first row as headers
+            const headers = Object.keys(data[0]);
+
+            headers.forEach(header => {
+                const th = document.createElement('th');
+                th.classList.add('py-3', 'px-4', 'text-sm', 'font-semibold', 'text-gray-700', 'uppercase', 'tracking-wide');
+                th.innerText = header;
+                headerRow.appendChild(th);
+            });
+            thead.appendChild(headerRow);
+            table.appendChild(thead);
+
+            const tbody = document.createElement('tbody');
+
+            data.forEach(row => {
+                const tr = document.createElement('tr');
+                tr.classList.add('border-t');
+
+                headers.forEach(header => {
+                    const td = document.createElement('td');
+                    td.classList.add('py-3', 'px-4', 'text-sm', 'text-gray-600');
+
+                    const cellData = row[header];
+
+                    // Special handling for icon_html, img_src, and word_cloud_img_src
+                    if (header === 'icon_html') {
+                        td.innerHTML = cellData;  // Render HTML
+                    } else if (header === 'img_src') {
+                        const img = document.createElement('img');
+                        img.src = cellData;
+                        img.classList.add('w-16', 'h-auto', 'rounded-md');  // Shrink img_src
+                        td.appendChild(img);
+                    } else if (header === 'word_cloud_img_src') {
+                        if (cellData && cellData !== 'None') {
+                            const img = document.createElement('img');
+                            img.src = cellData;
+                            img.classList.add('w-full', 'max-w-lg', 'h-auto', 'rounded-lg');  // Expand word cloud image
+                            td.appendChild(img);
+                        } else {
+                            td.innerText = 'No Image';
+                        }
+                    } else {
+                        td.innerText = cellData;  // Regular text
+                    }
+
+                    tr.appendChild(td);
+                });
+
+                tbody.appendChild(tr);
+            });
+
+            table.appendChild(tbody);
+
+            // Add filename as a title for each table
+            const title = document.createElement('h2');
+            title.classList.add('text-xl', 'font-bold', 'text-gray-800', 'mb-4');
+            title.innerText = `Data from ${fileName}`;
+            tableContainer.appendChild(title);
+            tableContainer.appendChild(table);
+        }
+
+        // Sorting function
+        document.getElementById('sort-btn').addEventListener('click', () => {
+            const column = document.getElementById('sort-column').value;
+            const order = document.getElementById('sort-order').value;
+
+            let sortedData = [...originalData].sort((a, b) => {
+                if (a[column] < b[column]) return order === 'asc' ? -1 : 1;
+                if (a[column] > b[column]) return order === 'asc' ? 1 : -1;
+                return 0;
+            });
+
+            renderTable(sortedData, 'Sorted Data');
+        });
+
+        // Filtering function
+        document.getElementById('filter-btn').addEventListener('click', () => {
+            const column = document.getElementById('filter-column').value;
+            const condition = document.getElementById('filter-condition').value;
+            const value = parseFloat(document.getElementById('filter-value').value);
+
+            let filteredData = originalData.filter(row => {
+                const cellValue = parseFloat(row[column]);
+                if (condition === 'greater') return cellValue > value;
+                if (condition === 'less') return cellValue < value;
+                if (condition === 'equal') return cellValue === value;
+                return false;
+            });
+
+            renderTable(filteredData, 'Filtered Data');
+        });
+    </script>
+</body>
+</html>

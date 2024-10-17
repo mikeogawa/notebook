@@ -1,0 +1,7 @@
+baseURL = 'https://example.org/'
+title = 'My New Hugo Site'
+paginate = 12
+
+disableKinds = ["categories", "tags", "taxonomy"]
+enableRobotsTXT = true
+

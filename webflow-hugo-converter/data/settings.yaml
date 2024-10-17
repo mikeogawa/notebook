@@ -1,0 +1,9 @@
+common_page_name: "common"
+
+ugly_urls: false
+
+post_section:
+  - section: news
+    template:
+      list: new.html
+      detail: news-template.html
